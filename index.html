@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solitude Mountain Resort — Trail Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif}
+#map{width:100%;height:100vh}
+.title-overlay{position:absolute;top:12px;left:56px;z-index:1000;background:rgba(15,25,40,.88);color:#fff;padding:12px 20px;border-radius:10px;backdrop-filter:blur(8px);box-shadow:0 4px 15px rgba(0,0,0,.3)}
+.title-overlay h1{font-size:1.2rem;letter-spacing:.5px;margin-bottom:2px}
+.title-overlay p{font-size:.75rem;opacity:.7;font-weight:300}
+.legend-box{position:absolute;bottom:28px;left:12px;z-index:1000;background:rgba(15,25,40,.88);color:#fff;padding:12px 16px;border-radius:10px;backdrop-filter:blur(8px);font-size:.8rem;box-shadow:0 4px 15px rgba(0,0,0,.3)}
+.legend-box h3{font-size:.85rem;margin-bottom:8px;font-weight:600}
+.legend-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;cursor:pointer;transition:opacity .2s}
+.legend-row:hover{opacity:.8}
+.legend-row .line{width:24px;height:4px;border-radius:2px}
+.legend-row .line.dashed{background:repeating-linear-gradient(90deg,#888 0,#888 6px,transparent 6px,transparent 10px)}
+.legend-row input{margin:0}
+.info-box{font-size:13px;line-height:1.5}
+.info-box strong{font-size:14px}
+.info-box .diff{display:inline-block;padding:2px 8px;border-radius:4px;color:#fff;font-size:11px;font-weight:600;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="title-overlay">
+  <h1>⛷ Solitude Mountain Resort</h1>
+  <p>Big Cottonwood Canyon, UT · 1,200 Acres · 2,047' Vertical</p>
+</div>
+
+<div id="map"></div>
+
+<div class="legend-box">
+  <h3>Trail Map</h3>
+  <label class="legend-row"><input type="checkbox" checked data-layer="green"> <span class="line" style="background:#22a948"></span> ● Beginner</label>
+  <label class="legend-row"><input type="checkbox" checked data-layer="blue"> <span class="line" style="background:#2b7de0"></span> ■ Intermediate</label>
+  <label class="legend-row"><input type="checkbox" checked data-layer="black"> <span class="line" style="background:#1a1a1a"></span> ◆ Advanced</label>
+  <label class="legend-row"><input type="checkbox" checked data-layer="dblack"> <span class="line" style="background:#cc1100"></span> ◆◆ Expert</label>
+  <label class="legend-row"><input type="checkbox" checked data-layer="lifts"> <span class="line dashed"></span> Chairlifts</label>
+</div>
+
+<script>
+// Init map centered on Solitude
+const map = L.map('map', {
+  center: [40.6195, -111.5885],
+  zoom: 15,
+  maxZoom: 17,
+  minZoom: 13
+});
+
+// OpenTopoMap tiles (free, no API key)
+L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenTopoMap (CC-BY-SA)',
+  maxZoom: 17
+}).addTo(map);
+
+// Layer groups
+const layers = {
+  green: L.layerGroup().addTo(map),
+  blue: L.layerGroup().addTo(map),
+  black: L.layerGroup().addTo(map),
+  dblack: L.layerGroup().addTo(map),
+  lifts: L.layerGroup().addTo(map)
+};
+
+// Helper: create run polyline
+function addRun(coords, name, diff, color, layer, extra) {
+  const diffColors = {'green':'#22a948','blue':'#2b7de0','black':'#1a1a1a','dblack':'#cc1100'};
+  const diffLabels = {'green':'● Beginner','blue':'■ Intermediate','black':'◆ Advanced','dblack':'◆◆ Expert'};
+  const diffBg = {'green':'#1a8a35','blue':'#1a5ab8','black':'#333','dblack':'#aa0000'};
+  
+  const line = L.polyline(coords, {
+    color: diffColors[layer],
+    weight: 3,
+    opacity: 0.8,
+    lineJoin: 'round',
+    lineCap: 'round'
+  });
+  
+  line.on('mouseover', function(){ this.setStyle({weight:6, opacity:1}); });
+  line.on('mouseout', function(){ this.setStyle({weight:3, opacity:0.8}); });
+  
+  let html = `<div class="info-box"><strong>${name}</strong><br><span class="diff" style="background:${diffBg[layer]}">${diffLabels[layer]}</span>`;
+  if(extra) html += `<br><small style="opacity:.7">${extra}</small>`;
+  html += '</div>';
+  line.bindPopup(html);
+  
+  layers[layer].addLayer(line);
+}
+
+// Helper: create lift
+function addLift(coords, name, type) {
+  const line = L.polyline(coords, {
+    color: '#555',
+    weight: 3,
+    opacity: 0.9,
+    dashArray: '8 6'
+  });
+  
+  line.bindPopup(`<div class="info-box"><strong>${name}</strong><br><small>${type}</small></div>`);
+  
+  // Terminal markers
+  L.circleMarker(coords[0], {radius:5, color:'#333', fillColor:'#666', fillOpacity:1, weight:2}).addTo(layers.lifts);
+  L.circleMarker(coords[coords.length-1], {radius:5, color:'#333', fillColor:'#ff4444', fillOpacity:1, weight:2}).addTo(layers.lifts);
+  
+  layers.lifts.addLayer(line);
+}
+
+// ==================== LIFTS ====================
+
+addLift([
+  [40.6148, -111.5968], [40.6175, -111.5952]
+], 'Link', 'Fixed-Grip Double Chair');
+
+addLift([
+  [40.6152, -111.5940], [40.6208, -111.5920]
+], 'Moonbeam Express', 'High-Speed Detachable Quad');
+
+addLift([
+  [40.6140, -111.5895], [40.6215, -111.5878]
+], 'Eagle Express', 'High-Speed Six-Pack ★');
+
+addLift([
+  [40.6145, -111.5870], [40.6205, -111.5852]
+], 'Apex Express', 'High-Speed Detachable Quad');
+
+addLift([
+  [40.6218, -111.5875], [40.6272, -111.5858]
+], 'Summit Express', 'High-Speed Detachable Quad');
+
+addLift([
+  [40.6138, -111.5835], [40.6188, -111.5822]
+], 'Sunrise', 'Fixed-Grip Triple Chair');
+
+addLift([
+  [40.6142, -111.5858], [40.6212, -111.5842]
+], 'Powderhorn II', 'Fixed-Grip Quad Chair');
+
+addLift([
+  [40.6248, -111.5828], [40.6228, -111.5852]
+], 'Honeycomb Return', 'Fixed-Grip Quad Chair');
+
+// ==================== GREEN RUNS ====================
+
+addRun([
+  [40.6175, -111.5952], [40.6170, -111.5955], [40.6163, -111.5960], [40.6155, -111.5963], [40.6148, -111.5968]
+], 'Easy Street', 'green', '#22a948', 'green');
+
+addRun([
+  [40.6175, -111.5952], [40.6168, -111.5958], [40.6160, -111.5965], [40.6152, -111.5970], [40.6148, -111.5968]
+], 'Same Street', 'green', '#22a948', 'green');
+
+addRun([
+  [40.6208, -111.5920], [40.6198, -111.5925], [40.6185, -111.5930], [40.6172, -111.5935], [40.6160, -111.5938], [40.6152, -111.5940]
+], 'Moonbeam', 'green', '#22a948', 'green');
+
+addRun([
+  [40.6208, -111.5920], [40.6200, -111.5928], [40.6190, -111.5935], [40.6178, -111.5940], [40.6165, -111.5942], [40.6155, -111.5943]
+], 'Poacher', 'green', '#22a948', 'green');
+
+addRun([
+  [40.6188, -111.5822], [40.6180, -111.5825], [40.6170, -111.5828], [40.6158, -111.5830], [40.6148, -111.5833], [40.6138, -111.5835]
+], 'Little Dollie', 'green', '#22a948', 'green');
+
+addRun([
+  [40.6188, -111.5822], [40.6182, -111.5818], [40.6172, -111.5820], [40.6162, -111.5824], [40.6150, -111.5828], [40.6138, -111.5835]
+], 'Owl', 'green', '#22a948', 'green');
+
+// ==================== BLUE RUNS ====================
+
+addRun([
+  [40.6208, -111.5920], [40.6200, -111.5915], [40.6188, -111.5910], [40.6175, -111.5905], [40.6162, -111.5900], [40.6150, -111.5898], [40.6140, -111.5895]
+], 'Dynamite', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6208, -111.5920], [40.6198, -111.5912], [40.6185, -111.5905], [40.6172, -111.5900], [40.6158, -111.5895], [40.6145, -111.5892]
+], 'Middle Slope', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6215, -111.5878], [40.6205, -111.5882], [40.6192, -111.5886], [40.6178, -111.5890], [40.6165, -111.5893], [40.6152, -111.5895], [40.6140, -111.5895]
+], 'Deer Trail', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6215, -111.5878], [40.6208, -111.5880], [40.6195, -111.5885], [40.6182, -111.5890], [40.6168, -111.5892], [40.6155, -111.5894], [40.6142, -111.5895]
+], 'Inspiration', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6215, -111.5878], [40.6205, -111.5875], [40.6192, -111.5878], [40.6180, -111.5882], [40.6167, -111.5888], [40.6155, -111.5892], [40.6143, -111.5895]
+], 'Galaxy', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6205, -111.5852], [40.6195, -111.5855], [40.6182, -111.5858], [40.6170, -111.5862], [40.6158, -111.5866], [40.6148, -111.5870]
+], 'Liberty', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6205, -111.5852], [40.6198, -111.5848], [40.6185, -111.5850], [40.6172, -111.5855], [40.6160, -111.5860], [40.6148, -111.5865]
+], 'Passage', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6205, -111.5852], [40.6195, -111.5845], [40.6182, -111.5848], [40.6168, -111.5852], [40.6155, -111.5858], [40.6145, -111.5862]
+], 'Roundhouse', 'blue', '#2b7de0', 'blue');
+
+addRun([
+  [40.6205, -111.5852], [40.6198, -111.5858], [40.6188, -111.5862], [40.6175, -111.5865], [40.6162, -111.5868], [40.6150, -111.5872]
+], 'Northstar', 'blue', '#2b7de0', 'blue');
+
+// ==================== BLACK DIAMOND RUNS ====================
+
+addRun([
+  [40.6212, -111.5842], [40.6202, -111.5845], [40.6190, -111.5848], [40.6178, -111.5850], [40.6165, -111.5852], [40.6152, -111.5855], [40.6142, -111.5858]
+], 'Headwall', 'black', '#1a1a1a', 'black');
+
+addRun([
+  [40.6212, -111.5842], [40.6205, -111.5838], [40.6195, -111.5840], [40.6182, -111.5842], [40.6170, -111.5845], [40.6158, -111.5850], [40.6145, -111.5855]
+], 'Parachute', 'black', '#1a1a1a', 'black');
+
+addRun([
+  [40.6212, -111.5842], [40.6205, -111.5835], [40.6195, -111.5832], [40.6182, -111.5835], [40.6168, -111.5840], [40.6155, -111.5845], [40.6142, -111.5850]
+], 'Corner Chute', 'black', '#1a1a1a', 'black');
+
+addRun([
+  [40.6212, -111.5842], [40.6200, -111.5848], [40.6188, -111.5852], [40.6175, -111.5855], [40.6162, -111.5857], [40.6150, -111.5858]
+], 'Diamond Lane', 'black', '#1a1a1a', 'black');
+
+addRun([
+  [40.6212, -111.5842], [40.6205, -111.5830], [40.6195, -111.5825], [40.6182, -111.5828], [40.6168, -111.5832], [40.6155, -111.5838], [40.6142, -111.5842]
+], 'Challenger', 'black', '#1a1a1a', 'black');
+
+// Eagle Ridge Trail (traverse)
+addRun([
+  [40.6208, -111.5920], [40.6212, -111.5905], [40.6215, -111.5890], [40.6215, -111.5878], [40.6213, -111.5860], [40.6212, -111.5842]
+], 'Eagle Ridge Trail', 'black', '#1a1a1a', 'black', 'Ridgeline traverse');
+
+// ==================== DOUBLE BLACK DIAMOND RUNS ====================
+
+addRun([
+  [40.6272, -111.5858], [40.6268, -111.5855], [40.6262, -111.5848], [40.6258, -111.5840], [40.6255, -111.5835], [40.6252, -111.5830], [40.6248, -111.5828]
+], 'Honeycomb Trail', 'dblack', '#cc1100', 'dblack', '3.5 miles — longest run at Solitude');
+
+addRun([
+  [40.6272, -111.5858], [40.6265, -111.5852], [40.6260, -111.5845], [40.6255, -111.5838], [40.6250, -111.5832], [40.6248, -111.5828]
+], 'Woodlawn', 'dblack', '#cc1100', 'dblack');
+
+addRun([
+  [40.6272, -111.5858], [40.6268, -111.5862], [40.6262, -111.5858], [40.6257, -111.5850], [40.6252, -111.5842], [40.6248, -111.5835], [40.6248, -111.5828]
+], 'Fantasy Ridge', 'dblack', '#cc1100', 'dblack');
+
+addRun([
+  [40.6272, -111.5858], [40.6266, -111.5860], [40.6260, -111.5855], [40.6255, -111.5848], [40.6250, -111.5840], [40.6248, -111.5832]
+], 'Milk Run', 'dblack', '#cc1100', 'dblack');
+
+addRun([
+  [40.6272, -111.5858], [40.6268, -111.5865], [40.6263, -111.5860], [40.6258, -111.5852], [40.6253, -111.5844], [40.6250, -111.5836], [40.6248, -111.5828]
+], 'Paradise', 'dblack', '#cc1100', 'dblack');
+
+addRun([
+  [40.6272, -111.5858], [40.6265, -111.5865], [40.6260, -111.5862], [40.6255, -111.5855], [40.6250, -111.5845], [40.6248, -111.5835]
+], 'Living Room', 'dblack', '#cc1100', 'dblack');
+
+// ==================== MARKERS ====================
+
+L.marker([40.6140, -111.5895], {
+  icon: L.divIcon({
+    className: '',
+    html: '<div style="background:rgba(15,25,40,.85);color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)">🏠 Base Village · 7,988\'</div>',
+    iconAnchor: [80, 20]
+  })
+}).addTo(map);
+
+L.marker([40.6275, -111.5855], {
+  icon: L.divIcon({
+    className: '',
+    html: '<div style="background:rgba(15,25,40,.85);color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)">▲ Summit · 10,035\'</div>',
+    iconAnchor: [70, 30]
+  })
+}).addTo(map);
+
+// ==================== LEGEND TOGGLES ====================
+document.querySelectorAll('.legend-box input[data-layer]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const layer = layers[cb.dataset.layer];
+    if(cb.checked) map.addLayer(layer);
+    else map.removeLayer(layer);
+  });
+});
+</script>
+</body>
+</html>
